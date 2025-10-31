@@ -38,7 +38,7 @@ if uploaded_file is not None:
         img_array = np.array(image)
 
         # Show uploaded image
-        st.image(img_array, caption="Uploaded Image", use_container_width=True)
+        st.image(img_array, caption="Uploaded Image", use_column_width=True)  # ✅ fixed here
 
         # If stitched image, crop into patches
         if img_array.shape[0] > 1000 or img_array.shape[1] > 1000:
