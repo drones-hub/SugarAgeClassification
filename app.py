@@ -4,48 +4,54 @@ import numpy as np
 import tensorflow as tf
 import os
 
-# -------------------------------
-# Streamlit App Title
-# -------------------------------
+st.set_page_config(page_title="Sugarcane Age Prediction", page_icon="🌾")
+
 st.title("🌾 Sugarcane Age Prediction App")
+st.markdown("Upload an RGB image of sugarcane to predict crop age in months.")
 
 # -------------------------------
-# Upload Section
+# Load the model safely
+# -------------------------------
+MODEL_PATH = "final_model_noopt.keras"
+model = None
+
+if os.path.exists(MODEL_PATH):
+    try:
+        with st.spinner("Loading model... ⏳"):
+            model = tf.keras.models.load_model(MODEL_PATH)
+        st.success("✅ Model loaded successfully!")
+    except Exception as e:
+        st.error(f"❌ Failed to load model: {e}")
+else:
+    st.warning("⚠️ Model file not found! Upload `final_model_noopt.keras` in the same directory as `app.py`.")
+
+# -------------------------------
+# Image Upload
 # -------------------------------
 uploaded_file = st.file_uploader("📸 Upload a sugarcane image", type=["jpg", "jpeg", "png"])
 
-# -------------------------------
-# Model Loading (safe)
-# -------------------------------
-MODEL_PATH = "final_model_noopt.keras"
+if uploaded_file is not None:
+    try:
+        # Open and display uploaded image
+        image = Image.open(uploaded_file).convert("RGB")
+        st.image(image, caption="Uploaded Image", use_column_width=True)
 
-# Check if model exists before loading
-if not os.path.exists(MODEL_PATH):
-    st.error("❌ Model file not found! Please ensure 'final_model_noopt.keras' is uploaded to the same directory as app.py.")
-else:
-    model = tf.keras.models.load_model(MODEL_PATH)
+        # Proceed only if model loaded
+        if model is not None:
+            with st.spinner("Predicting... 🧠"):
+                # Resize & preprocess
+                img = image.resize((224, 224))
+                img_array = np.expand_dims(np.array(img) / 255.0, axis=0)
 
-    # -------------------------------
-    # Prediction Section
-    # -------------------------------
-    if uploaded_file is not None:
-        try:
-            # Open and display image
-            image = Image.open(uploaded_file).convert("RGB")
-            st.image(image, caption="Uploaded Image", use_column_width=True)
-
-            # Preprocess image
-            img = image.resize((224, 224))
-            img_array = np.expand_dims(np.array(img) / 255.0, axis=0)
-
-            # Predict
-            prediction = model.predict(img_array)
-            predicted_age = float(prediction[0][0])
+                # Predict
+                prediction = model.predict(img_array)
+                predicted_age = float(prediction[0][0])
 
             st.success(f"🌱 Predicted Sugarcane Age: **{predicted_age:.2f} months**")
+        else:
+            st.error("⚠️ Model not loaded. Please check your model file.")
 
-        except Exception as e:
-            st.error(f"⚠️ Error processing image: {e}")
-
-    else:
-        st.info("📤 Please upload an image to start prediction.")
+    except Exception as e:
+        st.error(f"⚠️ Error processing image: {e}")
+else:
+    st.info("📤 Please upload an image to start prediction.")
