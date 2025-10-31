@@ -36,7 +36,7 @@ def predict_age(image):
 # Streamlit UI
 # ----------------------------
 st.title("🌾 Sugarcane Age Prediction App")
-st.write("Upload an RGB drone image to predict the crop age (2, 4, 6, 9, or 11 months).")
+st.write("Upload an RGB drone image to predict the crop age .")
 
 uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png", "tif"])
 
