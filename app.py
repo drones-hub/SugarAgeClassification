@@ -1,57 +1,74 @@
 import streamlit as st
-from PIL import Image
 import numpy as np
 import tensorflow as tf
+from PIL import Image
+import cv2
 import os
 
-st.set_page_config(page_title="Sugarcane Age Prediction", page_icon="🌾")
+# ----------------------------
+# Load trained model
+# ----------------------------
+@st.cache_resource
+def load_model():
+    model = tf.keras.models.load_model("sugarcane_age_model.h5")  # your trained model file
+    return model
 
+model = load_model()
+
+# ----------------------------
+# Define constants
+# ----------------------------
+AGE_CLASSES = ["2 month", "4 month", "6 month", "9 month", "11 month"]
+PATCH_SIZE = 250  # for stitched image
+INPUT_SIZE = (224, 224)
+
+# ----------------------------
+# Predict function
+# ----------------------------
+def predict_age(image):
+    img_resized = cv2.resize(image, INPUT_SIZE)
+    img_resized = img_resized / 255.0
+    img_resized = np.expand_dims(img_resized, axis=0)
+    preds = model.predict(img_resized)
+    return AGE_CLASSES[np.argmax(preds)], np.max(preds)
+
+# ----------------------------
+# Streamlit UI
+# ----------------------------
 st.title("🌾 Sugarcane Age Prediction App")
-st.markdown("Upload an RGB image of sugarcane to predict crop age in months.")
+st.write("Upload an RGB drone image to predict the crop age (2, 4, 6, 9, or 11 months).")
 
-# -------------------------------
-# Load the model safely
-# -------------------------------
-MODEL_PATH = "final_model_noopt.keras"
-model = None
-
-if os.path.exists(MODEL_PATH):
-    try:
-        with st.spinner("Loading model... ⏳"):
-            model = tf.keras.models.load_model(MODEL_PATH)
-        st.success("✅ Model loaded successfully!")
-    except Exception as e:
-        st.error(f"❌ Failed to load model: {e}")
-else:
-    st.warning("⚠️ Model file not found! Upload `final_model_noopt.keras` in the same directory as `app.py`.")
-
-# -------------------------------
-# Image Upload
-# -------------------------------
-uploaded_file = st.file_uploader("📸 Upload a sugarcane image", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png", "tif"])
 
 if uploaded_file is not None:
-    try:
-        # Open and display uploaded image
-        image = Image.open(uploaded_file).convert("RGB")
-        st.image(image, caption="Uploaded Image", use_column_width=True)
+    # Show uploaded image
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
+    img = np.array(image)
 
-        # Proceed only if model loaded
-        if model is not None:
-            with st.spinner("Predicting... 🧠"):
-                # Resize & preprocess
-              input_shape=(240, 240, 3)
-                img_array = np.expand_dims(np.array(img) / 255.0, axis=0)
+    st.write("### 🔍 Prediction Results:")
 
-                # Predict
-                prediction = model.predict(img_array)
-                predicted_age = float(prediction[0][0])
+    # If stitched image (large), crop into patches
+    if img.shape[0] > 1000 or img.shape[1] > 1000:
+        st.write("Large image detected — cropping into patches...")
+        patch_predictions = []
 
-            st.success(f"🌱 Predicted Sugarcane Age: **{predicted_age:.2f} months**")
+        for y in range(0, img.shape[0], PATCH_SIZE):
+            for x in range(0, img.shape[1], PATCH_SIZE):
+                patch = img[y:y+PATCH_SIZE, x:x+PATCH_SIZE]
+                if patch.shape[0] < 50 or patch.shape[1] < 50:
+                    continue
+                age, conf = predict_age(patch)
+                patch_predictions.append(age)
+
+        # Majority vote
+        if patch_predictions:
+            final_age = max(set(patch_predictions), key=patch_predictions.count)
+            st.success(f"Predicted Age: **{final_age}** (based on {len(patch_predictions)} patches)")
         else:
-            st.error("⚠️ Model not loaded. Please check your model file.")
+            st.warning("No valid patches found in image.")
 
-    except Exception as e:
-        st.error(f"⚠️ Error processing image: {e}")
-else:
-    st.info("📤 Please upload an image to start prediction.")
+    else:
+        # Single image prediction
+        predicted_age, confidence = predict_age(img)
+        st.success(f"Predicted Age: **{predicted_age}** ({confidence*100:.2f}% confidence)")
