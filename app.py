@@ -10,7 +10,7 @@ import os
 # ----------------------------
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("sugarcane_age_model.h5")  # your trained model file
+    model = tf.keras.models.load_model("final_model_noopt.keras")  # your trained model file
     return model
 
 model = load_model()
