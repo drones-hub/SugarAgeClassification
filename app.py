@@ -13,7 +13,7 @@ if uploaded_file is not None:
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
     # Load model
-    model = tf.keras.models.load_model("model/final_model_noopt.keras")
+    model = tf.keras.models.load_model("final_model_noopt.keras")
 
     # Preprocess image
     img = image.resize((224, 224))
