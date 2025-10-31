@@ -10,8 +10,7 @@ st.title("Sugarcane Age Prediction App")
 @st.cache_resource
 def load_model():
     model = tf.keras.models.load_model("final_model_noopt.keras")
-
-")
+    
     return model
 
 model = load_model()
