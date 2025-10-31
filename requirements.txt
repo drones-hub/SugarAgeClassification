@@ -1,7 +1,6 @@
 streamlit==1.39.0
-tensorflow==2.17.0
-keras==3.4.1
+tensorflow==2.20.0
 numpy
-pillow
-h5py
-opencv-python
+pandas
+Pillow
+opencv-python-headless
