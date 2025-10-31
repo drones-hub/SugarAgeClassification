@@ -11,7 +11,7 @@ st.write("Upload a sugarcane field image (RGB) to predict the crop age using the
 # Load model
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("model/sugarcane_age_model.h5")
+    model = tf.keras.models.load_model("model/final_model_noopt.keras")
     return model
 
 model = load_model()
