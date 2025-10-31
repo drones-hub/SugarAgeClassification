@@ -1,70 +1,74 @@
 import streamlit as st
-import numpy as np
 import tensorflow as tf
+from tensorflow.keras.models import load_model
 from PIL import Image
-import io
+import numpy as np
 
-st.set_page_config(page_title="Sugarcane Age Prediction", layout="centered")
-st.title("🌿 Sugarcane Age Prediction App")
+# --- App Configuration ---
+st.set_page_config(
+    page_title="🌿 Sugarcane Age Classifier",
+    page_icon="🍃",
+    layout="centered"
+)
 
-# Load trained model
+st.title('🌿 Sugarcane Age Classification')
+st.write("Upload a sugarcane field or plant image to classify its growth stage.")
+
+# --- Model Loading ---
 @st.cache_resource
-def load_model():
-    return tf.keras.models.load_model("final_model_noopt.keras")
-
-model = load_model()
-
-# Define age classes
-AGE_CLASSES = ["2 month", "4 month", "6 month", "9 month", "11 month"]
-PATCH_SIZE = 240  # based on your model input shape
-
-def predict_age(image):
-    """Preprocess image and predict sugarcane age."""
-    image = Image.fromarray(image).resize((PATCH_SIZE, PATCH_SIZE))
-    img_array = np.expand_dims(np.array(image) / 255.0, axis=0)
-    preds = model.predict(img_array)
-    predicted_index = np.argmax(preds)
-    confidence = np.max(preds)
-    return AGE_CLASSES[predicted_index], confidence
-
-# File uploader
-uploaded_file = st.file_uploader("📸 Upload a sugarcane image", type=["jpg", "jpeg", "png"])
-
-if uploaded_file is not None:
+def load_our_model():
+    """Loads the trained sugarcane age prediction model."""
     try:
-        # Convert file buffer safely into an image
-        image_bytes = uploaded_file.read()
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img_array = np.array(image)
+        model = load_model("final_model_noopt.keras")  # ✅ using your working model
+        return model
+    except Exception as e:
+        st.error(f"❌ Error loading model: {e}")
+        return None
 
-        # Show uploaded image
-        st.image(img_array, caption="Uploaded Image", use_column_width=True)  # ✅ fixed here
+model = load_our_model()
 
-        # If stitched image, crop into patches
-        if img_array.shape[0] > 1000 or img_array.shape[1] > 1000:
-            st.info("🧩 Large image detected — analyzing patches...")
-            patch_predictions = []
+# --- Image Preprocessing ---
+def preprocess_image(image):
+    """Resize and normalize image for model input."""
+    target_size = (240, 240)  # ✅ model expects 240x240
+    img = image.resize(target_size)
+    img_array = np.array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+    return img_array
 
-            for y in range(0, img_array.shape[0], PATCH_SIZE):
-                for x in range(0, img_array.shape[1], PATCH_SIZE):
-                    patch = img_array[y:y+PATCH_SIZE, x:x+PATCH_SIZE]
-                    if patch.shape[0] < PATCH_SIZE // 2 or patch.shape[1] < PATCH_SIZE // 2:
-                        continue
-                    age, _ = predict_age(patch)
-                    patch_predictions.append(age)
+# --- Class Labels (Match your model training order) ---
+CLASS_NAMES = ['2 month', '4 month', '6 month', '9 month', '11 month']
 
-            if patch_predictions:
-                final_age = max(set(patch_predictions), key=patch_predictions.count)
-                st.success(f"Predicted Age: **{final_age}** (based on {len(patch_predictions)} patches)")
-            else:
-                st.warning("⚠️ No valid patches found in this image.")
-        else:
-            # Single prediction
-            predicted_age, conf = predict_age(img_array)
-            st.success(f"✅ Predicted Age: **{predicted_age}** ({conf*100:.2f}% confidence)")
+# --- File Upload ---
+uploaded_file = st.file_uploader("📸 Choose a sugarcane image...", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None and model is not None:
+    try:
+        image = Image.open(uploaded_file).convert("RGB")
+        st.image(image, caption='📷 Uploaded Image', use_column_width=True)
+        st.write("🔍 Classifying...")
+
+        # Preprocess and Predict
+        processed_image = preprocess_image(image)
+        prediction = model.predict(processed_image)
+
+        predicted_index = np.argmax(prediction)
+        predicted_class = CLASS_NAMES[predicted_index]
+        confidence = np.max(prediction) * 100
+
+        # --- Display Results ---
+        st.success(f"✅ **Predicted Age:** {predicted_class}")
+        st.info(f"📊 **Confidence:** {confidence:.2f}%")
+
+        # Optional: show all class probabilities
+        st.write("### Prediction Probabilities:")
+        for i, prob in enumerate(prediction[0]):
+            st.write(f"{CLASS_NAMES[i]}: {prob*100:.2f}%")
 
     except Exception as e:
-        st.error(f"❌ Error processing image: {e}")
+        st.error(f"⚠️ Error processing image: {e}")
 
+elif model is None:
+    st.warning("⚠️ Model could not be loaded. Please verify 'final_model_noopt.keras' exists in your app folder.")
 else:
-    st.info("📂 Please upload a sugarcane image to start prediction.")
+    st.info("📂 Please upload an image to start prediction.")
