@@ -1,5 +1,7 @@
-streamlit==1.38.0
-tensorflow==2.15.0
-numpy==1.26.4
+streamlit==1.39.0
+tensorflow==2.17.0
+keras==3.4.1
+numpy
 pillow
 h5py
+opencv-python
