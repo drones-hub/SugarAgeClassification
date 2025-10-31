@@ -2,73 +2,69 @@ import streamlit as st
 import numpy as np
 import tensorflow as tf
 from PIL import Image
-import cv2
-import os
+import io
 
-# ----------------------------
+st.set_page_config(page_title="Sugarcane Age Prediction", layout="centered")
+st.title("🌿 Sugarcane Age Prediction App")
+
 # Load trained model
-# ----------------------------
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("final_model_noopt.keras")  # your trained model file
-    return model
+    return tf.keras.models.load_model("final_model_noopt.keras")
 
 model = load_model()
 
-# ----------------------------
-# Define constants
-# ----------------------------
+# Define age classes
 AGE_CLASSES = ["2 month", "4 month", "6 month", "9 month", "11 month"]
-PATCH_SIZE = 250  # for stitched image
-INPUT_SIZE = (224, 224)
+PATCH_SIZE = 240  # based on your model input shape
 
-# ----------------------------
-# Predict function
-# ----------------------------
 def predict_age(image):
-    img_resized = cv2.resize(image, INPUT_SIZE)
-    img_resized = img_resized / 255.0
-    img_resized = np.expand_dims(img_resized, axis=0)
-    preds = model.predict(img_resized)
-    return AGE_CLASSES[np.argmax(preds)], np.max(preds)
+    """Preprocess image and predict sugarcane age."""
+    image = Image.fromarray(image).resize((PATCH_SIZE, PATCH_SIZE))
+    img_array = np.expand_dims(np.array(image) / 255.0, axis=0)
+    preds = model.predict(img_array)
+    predicted_index = np.argmax(preds)
+    confidence = np.max(preds)
+    return AGE_CLASSES[predicted_index], confidence
 
-# ----------------------------
-# Streamlit UI
-# ----------------------------
-st.title("🌾 Sugarcane Age Prediction App")
-st.write("Upload an RGB drone image to predict the crop age .")
-
-uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png", "tif"])
+# File uploader
+uploaded_file = st.file_uploader("📸 Upload a sugarcane image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    # Show uploaded image
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image", use_container_width=True)
-    img = np.array(image)
+    try:
+        # Convert file buffer safely into an image
+        image_bytes = uploaded_file.read()
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        img_array = np.array(image)
 
-    st.write("### 🔍 Prediction Results:")
+        # Show uploaded image
+        st.image(img_array, caption="Uploaded Image", use_container_width=True)
 
-    # If stitched image (large), crop into patches
-    if img.shape[0] > 1000 or img.shape[1] > 1000:
-        st.write("Large image detected — cropping into patches...")
-        patch_predictions = []
+        # If stitched image, crop into patches
+        if img_array.shape[0] > 1000 or img_array.shape[1] > 1000:
+            st.info("🧩 Large image detected — analyzing patches...")
+            patch_predictions = []
 
-        for y in range(0, img.shape[0], PATCH_SIZE):
-            for x in range(0, img.shape[1], PATCH_SIZE):
-                patch = img[y:y+PATCH_SIZE, x:x+PATCH_SIZE]
-                if patch.shape[0] < 50 or patch.shape[1] < 50:
-                    continue
-                age, conf = predict_age(patch)
-                patch_predictions.append(age)
+            for y in range(0, img_array.shape[0], PATCH_SIZE):
+                for x in range(0, img_array.shape[1], PATCH_SIZE):
+                    patch = img_array[y:y+PATCH_SIZE, x:x+PATCH_SIZE]
+                    if patch.shape[0] < PATCH_SIZE // 2 or patch.shape[1] < PATCH_SIZE // 2:
+                        continue
+                    age, _ = predict_age(patch)
+                    patch_predictions.append(age)
 
-        # Majority vote
-        if patch_predictions:
-            final_age = max(set(patch_predictions), key=patch_predictions.count)
-            st.success(f"Predicted Age: **{final_age}** (based on {len(patch_predictions)} patches)")
+            if patch_predictions:
+                final_age = max(set(patch_predictions), key=patch_predictions.count)
+                st.success(f"Predicted Age: **{final_age}** (based on {len(patch_predictions)} patches)")
+            else:
+                st.warning("⚠️ No valid patches found in this image.")
         else:
-            st.warning("No valid patches found in image.")
+            # Single prediction
+            predicted_age, conf = predict_age(img_array)
+            st.success(f"✅ Predicted Age: **{predicted_age}** ({conf*100:.2f}% confidence)")
 
-    else:
-        # Single image prediction
-        predicted_age, confidence = predict_age(img)
-        st.success(f"Predicted Age: **{predicted_age}** ({confidence*100:.2f}% confidence)")
+    except Exception as e:
+        st.error(f"❌ Error processing image: {e}")
+
+else:
+    st.info("📂 Please upload a sugarcane image to start prediction.")
