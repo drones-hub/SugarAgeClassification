@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 
 # Title
-st.title("🌾 Sugarcane Age Prediction App")
+st.title("Sugarcane Age Prediction App")
 
 # Load model (cache it so it doesn’t reload each time)
 @st.cache_resource
@@ -17,7 +17,10 @@ def load_model():
 model = load_model()
 
 # Image upload section
-uploaded_file = st.file_uploader("Upload a sugarcane field image (RGB)", type=["jpg", "jpeg", "png"])
+uploaded_file = st.markdown("""
+### Upload a Sugarcane Image to Predict Age
+""")
+
 
 if uploaded_file is not None:
     # Display uploaded image
