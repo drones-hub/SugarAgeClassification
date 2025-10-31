@@ -40,7 +40,7 @@ if uploaded_file is not None:
         if model is not None:
             with st.spinner("Predicting... 🧠"):
                 # Resize & preprocess
-                img = image.resize((224, 224))
+              input_shape=(240, 240, 3)
                 img_array = np.expand_dims(np.array(img) / 255.0, axis=0)
 
                 # Predict
