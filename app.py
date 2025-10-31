@@ -9,7 +9,9 @@ st.title("🌾 Sugarcane Age Prediction App")
 # Load model (cache it so it doesn’t reload each time)
 @st.cache_resource
 def load_model():
-    model = tf.keras.models.load_model("model/sugarcane_age_model.h5")
+    model = tf.keras.models.load_model("final_model_noopt.keras")
+
+")
     return model
 
 model = load_model()
