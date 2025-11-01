@@ -20,12 +20,12 @@ st.write("Upload an image of a sugarcane plant to classify its growth stage.")
 # -----------------------------
 @st.cache_resource
 def load_model_once():
-    """Load the trained Keras model (once only)."""
+    """Load the trained Keras model once."""
     try:
-        model = tf.keras.models.load_model("final_model_noopt.keras")  # Your existing model
+        model = tf.keras.models.load_model("final_model_noopt.keras")  # Update path if needed
         return model
     except Exception as e:
-        st.error(f"Error loading model: {e}")
+        st.error(f"❌ Error loading model: {e}")
         return None
 
 model = load_model_once()
@@ -35,10 +35,15 @@ model = load_model_once()
 # -----------------------------
 def preprocess_image(image):
     """Resize and normalize the image for model prediction."""
-    img = image.resize((240, 240))  # Match your model’s input size
-    img_array = np.array(img) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
+    try:
+        img = image.convert("RGB")  # Ensure image is in RGB mode
+        img = img.resize((240, 240))  # Match your model’s input size
+        img_array = np.array(img) / 255.0  # Normalize to [0, 1]
+        img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
+        return img_array
+    except Exception as e:
+        st.error(f"⚠️ Error preprocessing image: {e}")
+        return None
 
 # -----------------------------
 # Class Labels
@@ -50,26 +55,26 @@ CLASS_NAMES = ['2_month', '4_month', '6_month', '9_month', '11_month']
 # -----------------------------
 uploaded_file = st.file_uploader("📸 Upload a sugarcane image", type=["jpg", "jpeg", "png"])
 
-if uploaded_file is not None and model is not None:
+if model is None:
+    st.warning("⚠️ Model could not be loaded. Please verify model path and format.")
+elif uploaded_file is not None:
     try:
         image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_column_width=True)
-        st.write("Classifying...")
+        st.image(image, caption="Uploaded Image", use_container_width=True)
+        st.write("🔍 Classifying...")
 
-        # Preprocess image & predict
+        # Preprocess and predict
         processed = preprocess_image(image)
-        prediction = model.predict(processed)
-        predicted_index = np.argmax(prediction)
-        predicted_label = CLASS_NAMES[predicted_index]
-        confidence = float(np.max(prediction) * 100)
+        if processed is not None:
+            prediction = model.predict(processed)
+            predicted_index = int(np.argmax(prediction))
+            predicted_label = CLASS_NAMES[predicted_index]
+            confidence = float(np.max(prediction) * 100)
 
-        # Display prediction
-        st.success(f"✅ Predicted Age: **{predicted_label.replace('_', ' ')}** ({confidence:.2f}% confidence)")
+            # Display prediction
+            st.success(f"✅ Predicted Age: **{predicted_label.replace('_', ' ')}** ({confidence:.2f}% confidence)")
 
     except Exception as e:
         st.error(f"⚠️ Error processing image: {e}")
-
-elif model is None:
-    st.warning("⚠️ Model could not be loaded. Please verify model path and format.")
 else:
     st.info("📂 Please upload a sugarcane image to start prediction.")
